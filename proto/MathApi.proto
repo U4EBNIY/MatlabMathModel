@@ -1,0 +1,104 @@
+syntax = "proto3";
+
+option csharp_namespace = "Grpc.MathApi";
+
+service MathApi {
+  // Функция запуска вычислений
+  rpc Start (ArgStart) returns (RetReply) {}
+
+  // Функция остановки вычислений
+  rpc Stop (ArgModel) returns (RetReply) {}
+
+  // Функция паузы вычислений
+  rpc Pause (ArgModel) returns (RetReply) {}
+
+  // Функция получения перечня моделей
+  rpc GetModels(ArgRequest) returns (Models) {}
+
+  // Функция получения перечня входных тегов
+  rpc GetInputTags(ArgModelName) returns (Tags) {}
+
+  // Функция получения перечня выходных тегов
+  rpc GetOutputTags(ArgModelName) returns (Tags) {}
+
+  // Функция получения перечня констант
+  rpc GetConstants(ArgModelName) returns (Constants) {}
+
+  // Функция такта вычисления
+  rpc Transform(ArgData) returns (TagsDataArray) {}
+}
+
+message ArgStart {
+  string modelId = 1;
+  string modelName = 2;
+  repeated Constant constants = 3;
+}
+
+message ArgData {
+  string modelId = 1;
+  repeated TagVal tagsVal = 2;
+}
+
+message ArgModel {
+  string modelId = 1;
+}
+
+message ArgModelName {
+  string modelName = 1;
+}
+
+message ArgRequest {
+  repeated KeyValuePair request = 1;
+}
+
+message KeyValuePair {
+  string key = 1;
+  string value = 2;
+}
+
+message Models {
+  repeated ModelName modelNames = 1;
+  string message = 2;
+}
+
+message ModelName {
+  string name = 1;
+  string desc = 2;
+}
+
+message Tags {
+  repeated TagType tags = 1;
+  string message = 2;
+}
+
+message TagType {
+  string name = 1;
+  string desc = 2;
+  string unit = 3;
+}
+
+message TagsDataArray {
+  repeated TagVal tagsVal = 1;
+  string message = 2;
+}
+
+message TagVal {
+  string tagName = 1;
+  uint64 timeStamp = 2;
+  double numericValue = 3;
+  bool isGood = 4;
+}
+
+message RetReply {
+  string message = 1;
+}
+
+message Constants {
+  repeated Constant constantValues = 1;
+  string message = 2;
+}
+
+message Constant {
+  string name = 1;
+  string value = 2;
+}
