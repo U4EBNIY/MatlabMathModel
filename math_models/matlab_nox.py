@@ -29,7 +29,7 @@ class MatlabNOxModel:
     def _get_default_coefs(self):
         # Константа по умолчанию, тут это путь к dll
         return {
-            'dll_path': 'D:/Model_NOx_v16_1s50hz_ert_rtw/PracticeModel/Model_NOx_v17_win64_1.dll',
+            'dll_path': 'C:/Users/Mad/Desktop/ПП/PythonProjects/MatlabMathServer/dll/Model_NOx_v17_win64.dll',
         }
 
     @property
@@ -58,8 +58,21 @@ class MatlabNOxModel:
 
     def load_data(self):
         # Загрузка DLL и инициализация модели
+        import sys
+        import os
+
+        if hasattr(sys, '_MEIPASS'):
+            base_path = sys._MEIPASS
+        else:
+            base_path = os.path.dirname(os.path.dirname(__file__))
+
+        # Проверяем, существует ли DLL по указанному пути
         if not os.path.exists(self.dll_path):
-            raise FileNotFoundError(f"DLL не найдена: {self.dll_path}")
+            alt_path = os.path.join(base_path, 'dll', os.path.basename(self.dll_path))
+            if os.path.exists(alt_path):
+                self.dll_path = alt_path
+            else:
+                raise FileNotFoundError(f"DLL не найдена: {self.dll_path}")
 
         # Загрузка DLL
         self.dll = ctypes.CDLL(self.dll_path)
@@ -106,9 +119,9 @@ class MatlabNOxModel:
         except AttributeError as e:
             raise RuntimeError(f"Ошибка получения функций из DLL: {e}")
 
-        # Инициализация модели
         self.initialize()
         self.is_initialized = True
+
 
     def calculate(self, x_input):
         if not self.is_initialized:
@@ -125,7 +138,7 @@ class MatlabNOxModel:
 
         # Важно: 52 шага подряд
         for _ in range(52):
-            self.step()  # один шаг модели
+            self.step()  # Один шаг модели
 
         # Возвращаем результат после 52 шагов
         return self.outputs.NO

@@ -22,30 +22,25 @@ def test_nox_model_v17():
         return
 
     # Путь к DLL
-    dll_path = "D:/Model_NOx_v16_1s50hz_ert_rtw/PracticeModel/Model_NOx_v17_win64.dll"
+    dll_path = "C:/Users/Mad/Desktop/ПП/PythonProjects/MatlabMathServer/dll/Model_NOx_v17_win64.dll"
     constants = [MathApi_pb2.Constant(name="dll_path", value=dll_path)]
 
-    print("\n" + "=" * 80)
-    print("ТЕСТИРОВАНИЕ МОДЕЛИ NOx")
-    print("=" * 80)
+    print("Тестирование модели NOx")
 
     # Запуск модели
-    print("\n1. ЗАПУСК МОДЕЛИ")
+    print("\n1. Запуск модели")
     model_id = str(uuid.uuid4())
     response = stub.Start(MathApi_pb2.ArgStart(modelId=model_id, modelName=model_name, constants=constants))
-    print(f"   Start response: {response.message}")
+    print(f"Start response: {response.message}")
 
     if "успешен" not in response.message:
-        print("   Модель не запустилась")
+        print("Модель не запустилась")
         return
 
     timestamp = int(time.time() * 1000)
     STEPS_PER_SLICE = 52
 
-    # ПРОГРЕВ
-    print("\n2. ПРОГРЕВ МОДЕЛИ")
-    print("-" * 60)
-
+    # Начальные данные
     tags_val = []
     base_time = timestamp
 
@@ -59,16 +54,16 @@ def test_nox_model_v17():
             MathApi_pb2.TagVal(tagName="PFR_RASH", timeStamp=base_time + step, numericValue=2.0, isGood=True))
 
     response = stub.Transform(MathApi_pb2.ArgData(modelId=model_id, tagsVal=tags_val))
-    print(f"   Прогрев: TK:800 PK:15 GTG:100 TT:500 PFR:2.0 === NOx = {response.tagsVal[0].numericValue:.2f}")
+    print(f"Начальные данные: TK:800 PK:15 GTG:100 TT:500 PFR:2.0 === NOx = {response.tagsVal[0].numericValue:.2f}")
 
-    # ТЕСТ 1: ТЕМПЕРАТУРА
+    # Тест 1: T
     print("\n" + "=" * 80)
-    print("ТЕСТ 1: ИЗМЕНЕНИЕ ТЕМПЕРАТУРЫ (TK)")
+    print("Тест 1: Изменение TK")
     print("=" * 80)
 
-    temperatures = [600, 650, 700, 750, 800, 850, 900, 950, 1000, 1050, 1100]
+    t_values = [600, 650, 700, 750, 800, 850, 900, 950, 1000, 1050, 1100]
 
-    for i, tk in enumerate(temperatures):
+    for i, tk in enumerate(t_values):
         tags_val = []
         base_time = timestamp + 100000 + i * 100000
 
@@ -87,14 +82,14 @@ def test_nox_model_v17():
         response = stub.Transform(MathApi_pb2.ArgData(modelId=model_id, tagsVal=tags_val))
         print(f"TK:{tk} PK:15 GTG:100 TT:500 PFR:2.0 === NOx = {response.tagsVal[0].numericValue:.2f}")
 
-    # ТЕСТ 2: ДАВЛЕНИЕ
+    # Тест 2: PK
     print("\n" + "=" * 80)
-    print("ТЕСТ 2: ИЗМЕНЕНИЕ ДАВЛЕНИЯ (PK)")
+    print("Тест 2: Изменение PK")
     print("=" * 80)
 
-    pressures = [5, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30]
+    pk_values = [5, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30]
 
-    for i, pk in enumerate(pressures):
+    for i, pk in enumerate(pk_values):
         tags_val = []
         base_time = timestamp + 2000000 + i * 100000
 
@@ -113,14 +108,14 @@ def test_nox_model_v17():
         response = stub.Transform(MathApi_pb2.ArgData(modelId=model_id, tagsVal=tags_val))
         print(f"TK:800 PK:{pk} GTG:100 TT:500 PFR:2.0 === NOx = {response.tagsVal[0].numericValue:.2f}")
 
-    # ТЕСТ 3: РАСХОД
+    # Тест 3: Изменение GTG_SAU
     print("\n" + "=" * 80)
-    print("ТЕСТ 3: ИЗМЕНЕНИЕ РАСХОДА (GTG)")
+    print("Тест 3: Изменение GTG_SAU")
     print("=" * 80)
 
-    flows = [30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160]
+    gtgSau_values = [30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160]
 
-    for i, gtg in enumerate(flows):
+    for i, gtg in enumerate(gtgSau_values):
         tags_val = []
         base_time = timestamp + 4000000 + i * 100000
 
@@ -139,14 +134,14 @@ def test_nox_model_v17():
         response = stub.Transform(MathApi_pb2.ArgData(modelId=model_id, tagsVal=tags_val))
         print(f"TK:800 PK:15 GTG:{gtg} TT:500 PFR:2.0 === NOx = {response.tagsVal[0].numericValue:.2f}")
 
-    # ТЕСТ 4: ТЕМПЕРАТУРА ТОПЛИВА
+    # Тест 4: TT
     print("\n" + "=" * 80)
-    print("ТЕСТ 4: ИЗМЕНЕНИЕ ТЕМПЕРАТУРЫ ТОПЛИВА (TT)")
+    print("Тест 4: Изменение TT")
     print("=" * 80)
 
-    fuel_temps = [300, 350, 400, 450, 500, 550, 600, 650, 700]
+    tt_values = [300, 350, 400, 450, 500, 550, 600, 650, 700]
 
-    for i, tt in enumerate(fuel_temps):
+    for i, tt in enumerate(tt_values):
         tags_val = []
         base_time = timestamp + 6000000 + i * 100000
 
@@ -165,9 +160,9 @@ def test_nox_model_v17():
         response = stub.Transform(MathApi_pb2.ArgData(modelId=model_id, tagsVal=tags_val))
         print(f"TK:800 PK:15 GTG:100 TT:{tt} PFR:2.0 === NOx = {response.tagsVal[0].numericValue:.2f}")
 
-    # ТЕСТ 5: PFR
+    # Тест 5: PFR
     print("\n" + "=" * 80)
-    print("ТЕСТ 5: ИЗМЕНЕНИЕ PFR_RASH")
+    print("Тест 5: Изменение PFR_RASH")
     print("=" * 80)
 
     pfr_values = [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0]
@@ -191,9 +186,9 @@ def test_nox_model_v17():
         response = stub.Transform(MathApi_pb2.ArgData(modelId=model_id, tagsVal=tags_val))
         print(f"TK:800 PK:15 GTG:100 TT:500 PFR:{pfr} === NOx = {response.tagsVal[0].numericValue:.2f}")
 
-    # ТЕСТ 6: ВСЁ РАНДОМНО
+    # Тест 6: Всё рандомно
     print("\n" + "=" * 80)
-    print("ТЕСТ 6: ВСЕ ПАРАМЕТРЫ РАНДОМНО")
+    print("Тест 6: Изменение всех параметров рандомно")
     print("=" * 80)
 
     random.seed(42)
@@ -225,8 +220,7 @@ def test_nox_model_v17():
 
     stub.Stop(MathApi_pb2.ArgModel(modelId=model_id))
     print("\n" + "=" * 80)
-    print("ТЕСТИРОВАНИЕ ЗАВЕРШЕНО")
-    print("=" * 80)
+    print("Тестирование завершено!")
 
 
 if __name__ == "__main__":
