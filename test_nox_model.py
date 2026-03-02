@@ -22,7 +22,7 @@ def test_nox_model_v17():
         return
 
     # Путь к DLL
-    dll_path = "C:/Users/Mad/Desktop/ПП/PythonProjects/MatlabMathServer/dll/Model_NOx_v17_win64.dll"
+    dll_path = 'dll/Model_NOx_v17_win64.dll'
     constants = [MathApi_pb2.Constant(name="dll_path", value=dll_path)]
 
     print("Тестирование модели NOx")
