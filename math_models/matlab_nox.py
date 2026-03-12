@@ -1,11 +1,16 @@
 import ctypes
 import os
+import sys
+
 
 class MatlabNOxModel:
+    """
+    Модель расчета NOx.
+    Принимает ОДИН набор данных, делает 52 шага, возвращает ОДИН результат.
+    """
 
-    # Описание модели
     description = (
-        'Модель NOx (MATLAB)'
+        'Модель NOx (MATLAB) '
         'Входы: TK, PK, GTG_SAU, TT, PFR_RASH. '
         'Режимы: 0 - стандартный режим'
     )
@@ -16,7 +21,6 @@ class MatlabNOxModel:
     io_unit = 'ppm'
 
     def __init__(self, coefs=None):
-        # Инициализация модели
         if coefs is None:
             coefs = self._get_default_coefs()
         self.coefs = coefs
@@ -27,9 +31,8 @@ class MatlabNOxModel:
         self.outputs = None
 
     def _get_default_coefs(self):
-        # Константа по умолчанию, тут это путь к dll
         return {
-            'dll_path': 'dll/Model_NOx_v17_win64.dll',  # Относительный путь
+            'dll_path': 'dll/Model_NOx_v17_win64_1.dll',
         }
 
     @property
@@ -57,7 +60,6 @@ class MatlabNOxModel:
         return ['TK', 'PK', 'GTG_SAU', 'TT', 'PFR_RASH']
 
     def load_data(self):
-        # Загрузка DLL и инициализация модели
         import sys
         import os
 
@@ -66,7 +68,6 @@ class MatlabNOxModel:
         else:
             base_path = os.path.dirname(os.path.dirname(__file__))
 
-        # Проверяем, существует ли DLL по указанному пути
         if not os.path.exists(self.dll_path):
             alt_path = os.path.join(base_path, 'dll', os.path.basename(self.dll_path))
             if os.path.exists(alt_path):
@@ -74,11 +75,9 @@ class MatlabNOxModel:
             else:
                 raise FileNotFoundError(f"DLL не найдена: {self.dll_path}")
 
-        # Загрузка DLL
         self.dll = ctypes.CDLL(self.dll_path)
         print(f"DLL загружена: {self.dll_path}")
 
-        # Получение структур из DLL
         try:
             rtU_ptr = self.dll.Model_NOx_v17_U
             rtY_ptr = self.dll.Model_NOx_v17_Y
@@ -103,7 +102,6 @@ class MatlabNOxModel:
         except Exception as e:
             raise RuntimeError(f"Ошибка подключения к структурам DLL: {e}")
 
-        # Получение функций модели
         try:
             self.initialize = self.dll.Model_NOx_v17_initialize
             self.step = self.dll.Model_NOx_v17_step
@@ -122,29 +120,32 @@ class MatlabNOxModel:
         self.initialize()
         self.is_initialized = True
 
-
     def calculate(self, x_input):
+        # Принимает ОДИН набор данных.
+        # Делает для него 52 шага.
+        # Возвращает ОДИН результат (значение на 52-м шаге).
         if not self.is_initialized:
             raise RuntimeError("Модель не инициализирована")
 
-        # Устанавливаем входные данные (один раз для всего цикла)
-        if isinstance(x_input, dict):
-            for name in self.input_names:
-                if name in x_input:
-                    setattr(self.inputs, name, float(x_input[name]))
-        else:
-            for i, name in enumerate(self.input_names):
-                setattr(self.inputs, name, float(x_input[i]))
+        if not isinstance(x_input, dict):
+            x_input = {
+                'TK': float(x_input[0]),
+                'PK': float(x_input[1]),
+                'GTG_SAU': float(x_input[2]),
+                'TT': float(x_input[3]),
+                'PFR_RASH': float(x_input[4]),
+            }
 
-        # Важно: 52 шага подряд
+        for name in self.input_names:
+            if name in x_input:
+                setattr(self.inputs, name, float(x_input[name]))
+
         for _ in range(52):
-            self.step()  # Один шаг модели
+            self.step()
 
-        # Возвращаем результат после 52 шагов
         return self.outputs.NO
 
     def reset(self):
-        # Сброс модели
         if self.is_initialized:
             self.terminate()
             self.initialize()
