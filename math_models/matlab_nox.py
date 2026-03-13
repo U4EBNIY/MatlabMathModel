@@ -32,7 +32,7 @@ class MatlabNOxModel:
 
     def _get_default_coefs(self):
         return {
-            'dll_path': 'dll/Model_NOx_v17_win64_1.dll',
+            'dll_path': 'dll/Model_NOx_v16_1s50hz_win64_1.dll',
         }
 
     @property
@@ -79,8 +79,8 @@ class MatlabNOxModel:
         print(f"DLL загружена: {self.dll_path}")
 
         try:
-            rtU_ptr = self.dll.Model_NOx_v17_U
-            rtY_ptr = self.dll.Model_NOx_v17_Y
+            rtU_ptr = self.dll.Model_NOx_v16_1s50hz_U
+            rtY_ptr = self.dll.Model_NOx_v16_1s50hz_Y
 
             class ExtU(ctypes.Structure):
                 _fields_ = [
@@ -103,9 +103,9 @@ class MatlabNOxModel:
             raise RuntimeError(f"Ошибка подключения к структурам DLL: {e}")
 
         try:
-            self.initialize = self.dll.Model_NOx_v17_initialize
-            self.step = self.dll.Model_NOx_v17_step
-            self.terminate = self.dll.Model_NOx_v17_terminate
+            self.initialize = self.dll.Model_NOx_v16_1s50hz_initialize
+            self.step = self.dll.Model_NOx_v16_1s50hz_step
+            self.terminate = self.dll.Model_NOx_v16_1s50hz_terminate
 
             self.initialize.argtypes = []
             self.initialize.restype = None
@@ -127,6 +127,7 @@ class MatlabNOxModel:
         if not self.is_initialized:
             raise RuntimeError("Модель не инициализирована")
 
+        # Приводим данные к словарю
         if not isinstance(x_input, dict):
             x_input = {
                 'TK': float(x_input[0]),
@@ -136,13 +137,16 @@ class MatlabNOxModel:
                 'PFR_RASH': float(x_input[4]),
             }
 
+        # Устанавливаем входные данные в структуру DLL
         for name in self.input_names:
             if name in x_input:
                 setattr(self.inputs, name, float(x_input[name]))
 
+        # 52 шага расчёта для этого набора
         for _ in range(52):
             self.step()
 
+        # Возвращаем результат после 52 шагов
         return self.outputs.NO
 
     def reset(self):

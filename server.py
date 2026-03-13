@@ -141,47 +141,51 @@ class MathApi(MathApi_pb2_grpc.MathApiServicer):
             if not all_tags:
                 return MathApi_pb2.TagsDataArray(message="Err_Нет входных данных")
 
-            # Определяем количество шагов (тегов на параметр)
-            steps = len(all_tags) // 5
+            # Определяем количество наборов данных (5 тегов на набор)
+            num_sets = len(all_tags) // 5
             print(f"\n{'=' * 60}")
-            print(f"Transform: {len(all_tags)} тегов, {steps} раз посчитано")
+            print(f"Transform: {len(all_tags)} тегов, {num_sets} наборов данных")
             print(f"{'=' * 60}")
 
-            # Группируем теги по именам
+            # Группируем теги по именам параметров
             tag_dict = {}
             for tag in all_tags:
                 if tag.tagName not in tag_dict:
                     tag_dict[tag.tagName] = []
                 tag_dict[tag.tagName].append(tag)
 
-            # Проверяем, что есть все 5 параметров
-            required = ['TK', 'PK', 'GTG_SAU', 'TT', 'PFR_RASH']
-            for req in required:
-                if req not in tag_dict:
-                    return MathApi_pb2.TagsDataArray(message=f"Err_Нет параметра {req}")
+            # Проверяем наличие всех обязательных параметров
+            required_params = ['TK', 'PK', 'GTG_SAU', 'TT', 'PFR_RASH']
+            for param in required_params:
+                if param not in tag_dict:
+                    return MathApi_pb2.TagsDataArray(message=f"Err_Отсутствует параметр {param}")
 
-            # Собираем наборы по шагам
+            # Собираем наборы данных по шагам
             datasets = []
-            timestamp = 0
-            for step in range(steps):
+            for set_idx in range(num_sets):
                 dataset = {}
-                for param in required:
-                    tag = tag_dict[param][step]
+                for param in required_params:
+                    tag = tag_dict[param][set_idx]
                     dataset[param] = tag.numericValue
-                    if step == steps - 1:
-                        timestamp = tag.timeStamp
                 datasets.append(dataset)
 
-            print(f"Собрано {len(datasets)} наборов данных")
-
-            all_results = []
-            print(f"\nРезультаты для каждого набора данных:")
+            # Вычисляем результаты и собираем их в один ответ
+            response = MathApi_pb2.TagsDataArray()
+            print(f"\nРезультаты:")
             print(f"{'-' * 60}")
 
             for idx, dataset in enumerate(datasets):
                 try:
                     result = model.calculate(dataset)
-                    all_results.append(result)
+
+                    # Добавляем каждый результат как отдельный тег Y
+                    response.tagsVal.append(MathApi_pb2.TagVal(
+                        tagName="Y",
+                        timeStamp=tag_dict['TK'][idx].timeStamp,
+                        numericValue=float(result),
+                        isGood=True
+                    ))
+
                     print(f"  Набор {idx + 1:2d}: ", end="")
                     print(f"TK={dataset['TK']:6.1f}, ", end="")
                     print(f"PK={dataset['PK']:6.2f}, ", end="")
@@ -189,26 +193,22 @@ class MathApi(MathApi_pb2_grpc.MathApiServicer):
                     print(f"TT={dataset['TT']:6.1f}, ", end="")
                     print(f"PFR={dataset['PFR_RASH']:4.2f}  ->  ", end="")
                     print(f"NOx = {result:8.2f}")
+
                 except Exception as e:
                     print(f"  Ошибка на наборе {idx + 1}: {e}")
-                    all_results.append(0.0)
+                    response.tagsVal.append(MathApi_pb2.TagVal(
+                        tagName="Y",
+                        timeStamp=tag_dict['TK'][idx].timeStamp,
+                        numericValue=0.0,
+                        isGood=False
+                    ))
 
             print(f"{'-' * 60}")
-            print(f"Всего получено результатов: {len(all_results)}")
-            print(f"Последний результат: {all_results[-1]:.2f}")
+            print(f"Всего результатов: {len(response.tagsVal)}")
+            print(f"Последний результат: {response.tagsVal[-1].numericValue:.2f}")
             print(f"{'=' * 60}\n")
 
-            if all_results:
-                response = MathApi_pb2.TagsDataArray()
-                response.tagsVal.append(MathApi_pb2.TagVal(
-                    tagName="Y",
-                    timeStamp=timestamp,
-                    numericValue=float(all_results[-1]),
-                    isGood=True
-                ))
-                return response
-            else:
-                return MathApi_pb2.TagsDataArray(message="Err_Нет результатов")
+            return response
 
         except Exception as e:
             print(f"Ошибка Transform: {e}")
