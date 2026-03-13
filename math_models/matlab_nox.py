@@ -4,15 +4,9 @@ import sys
 
 
 class MatlabNOxModel:
-    """
-    Модель расчета NOx.
-    Принимает ОДИН набор данных, делает 52 шага, возвращает ОДИН результат.
-    """
-
     description = (
         'Модель NOx (MATLAB) '
         'Входы: TK, PK, GTG_SAU, TT, PFR_RASH. '
-        'Режимы: 0 - стандартный режим'
     )
 
     input_name = 'TK,PK,GTG_SAU,TT,PFR_RASH'
