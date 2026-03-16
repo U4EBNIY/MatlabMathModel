@@ -1,6 +1,7 @@
 import grpc
 from concurrent import futures
 import traceback
+import configparser
 import sys
 import os
 
@@ -12,6 +13,7 @@ from math_models.matlab_nox import MatlabNOxModel
 
 class ModelManager:
 
+    # Менеджер для создания, хранения и удаления экземпляров моделей
     def __init__(self):
         self.models = {}
 
@@ -19,11 +21,16 @@ class ModelManager:
         if model_id in self.models:
             self.remove_model(model_id)
 
+        # Проверяем, что запрос на нужную модель
         if model_name != "Модель MATLAB":
             return False, f"Модель '{model_name}' не найдена"
 
         try:
+
+            # Преобразуем константы из списка в словарь
             const_dict = {const.name: const.value for const in constants}
+
+            # Создаем экземпляр модели
             model = MatlabNOxModel(const_dict)
             model.load_data()
             self.models[model_id] = {
@@ -39,9 +46,11 @@ class ModelManager:
             traceback.print_exc()
             return False, f"Ошибка: {str(e)}"
 
+        # Возвращает данные модели по ID или None, если модели нет
     def get_model(self, model_id):
         return self.models.get(model_id)
 
+        # Удаляет модель по ID
     def remove_model(self, model_id):
         if model_id in self.models:
             try:
@@ -56,9 +65,11 @@ class ModelManager:
 
 class MathApi(MathApi_pb2_grpc.MathApiServicer):
 
+    # gRPC-сервис MathApi
     def __init__(self):
         self.model_manager = ModelManager()
 
+    # Возвращает список доступных моделей
     def GetModels(self, request, context):
         try:
             model = MatlabNOxModel()
@@ -70,6 +81,7 @@ class MathApi(MathApi_pb2_grpc.MathApiServicer):
         except Exception as e:
             return MathApi_pb2.Models(message=f"Err_{str(e)}")
 
+    # Возвращает список констант модели
     def GetConstants(self, request, context):
         try:
             if request.modelName != "Модель MATLAB":
@@ -82,6 +94,7 @@ class MathApi(MathApi_pb2_grpc.MathApiServicer):
         except Exception as e:
             return MathApi_pb2.Constants(message=f"Err_{str(e)}")
 
+    # Возвращает описание входных тегов модели
     def GetInputTags(self, request, context):
         try:
             if request.modelName != "Модель MATLAB":
@@ -98,6 +111,7 @@ class MathApi(MathApi_pb2_grpc.MathApiServicer):
         except Exception as e:
             return MathApi_pb2.Tags(message=f"Err_{str(e)}")
 
+    # Возвращает описание выходных тегов модели
     def GetOutputTags(self, request, context):
         try:
             if request.modelName != "Модель MATLAB":
@@ -112,6 +126,7 @@ class MathApi(MathApi_pb2_grpc.MathApiServicer):
         except Exception as e:
             return MathApi_pb2.Tags(message=f"Err_{str(e)}")
 
+    # Запускает модель
     def Start(self, request, context):
         try:
             model_id = request.modelId
@@ -128,7 +143,12 @@ class MathApi(MathApi_pb2_grpc.MathApiServicer):
         except Exception as e:
             return MathApi_pb2.RetReply(message=f"Err_{str(e)}")
 
+
     def Transform(self, request, context):
+
+        # Основной метод расчета
+        # Получает пакет данных (много тегов), разбивает на отдельные наборы,
+        # считает результат для каждого набора и возвращает все результаты
         try:
             model_id = request.modelId
             model_data = self.model_manager.get_model(model_id)
@@ -147,7 +167,7 @@ class MathApi(MathApi_pb2_grpc.MathApiServicer):
             print(f"Transform: {len(all_tags)} тегов, {num_sets} наборов данных")
             print(f"{'=' * 60}")
 
-            # Группируем теги по именам параметров
+            # Группируем теги по именам параметров (TK, PK, GTG_SAU, TT, PFR_RASH)
             tag_dict = {}
             for tag in all_tags:
                 if tag.tagName not in tag_dict:
@@ -196,6 +216,8 @@ class MathApi(MathApi_pb2_grpc.MathApiServicer):
 
                 except Exception as e:
                     print(f"  Ошибка на наборе {idx + 1}: {e}")
+
+                    # В случае ошибки добавляем 0 с флагом isGood=False
                     response.tagsVal.append(MathApi_pb2.TagVal(
                         tagName="Y",
                         timeStamp=tag_dict['TK'][idx].timeStamp,
@@ -216,6 +238,7 @@ class MathApi(MathApi_pb2_grpc.MathApiServicer):
             return MathApi_pb2.TagsDataArray(message=f"Err_{str(e)}")
 
     def Stop(self, request, context):
+        # Останавливает и удаляет модель
         try:
             model_id = request.modelId
             print(f"Stop: {model_id}")
@@ -228,23 +251,39 @@ class MathApi(MathApi_pb2_grpc.MathApiServicer):
             return MathApi_pb2.RetReply(message=f"Err_{str(e)}")
 
     def Pause(self, request, context):
+        # Пауза
         print(f"Pause: {request.modelId}")
         return MathApi_pb2.RetReply(message="Pause успешен")
 
 
 def serve():
-    port = "5080"
-    server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-    MathApi_pb2_grpc.add_MathApiServicer_to_server(MathApi(), server)
-    server.add_insecure_port("[::]:" + port)
+    # Запуск gRPC сервера
+    # Читаем конфиг
+    config = configparser.ConfigParser()
+    config.read('config.ini')
 
-    print(f"Сервер запущен на порту {port}")
+    host = config['server']['host']
+    port = config['server']['port']
+
+    # Создаем сервер
+    server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+
+    # Регистрируем сервис
+    MathApi_pb2_grpc.add_MathApiServicer_to_server(MathApi(), server)
+
+    # Запускаем прослушивание на указанном ip и порту
+    server.add_insecure_port(f"{host}:{port}")
+
+    print(f"Сервер запущен на {host}:{port}")
+    print(f"Для подключения используйте: {host if host != '0.0.0.0' else 'localhost'}:{port}")
     print("Доступные модели: Модель MATLAB (NOx)")
     print("Ожидание подключений...")
 
+    # Запускаем сервер
     server.start()
-    server.wait_for_termination()
 
+    # Блокируем основной поток до завершения сервера
+    server.wait_for_termination()
 
 if __name__ == "__main__":
     serve()
